@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 to-slate-800">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-cyan-400 mb-4">SubTracker</h1>
           <p className="text-gray-400">Loading...</p>
@@ -80,7 +80,7 @@ export default function DashboardPage() {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 to-slate-800">
       {/* Header */}
       <header className="border-b border-gray-800 bg-slate-900/50">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
