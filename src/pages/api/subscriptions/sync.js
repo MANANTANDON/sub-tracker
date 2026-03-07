@@ -74,23 +74,55 @@ async function getSubscriptionEmails(accessToken) {
       name: "Netflix",
       senders: ["info@netflix.com", "billing@netflix.com"],
       category: "Streaming",
+      requiresSubject: true,
     },
     {
       name: "Spotify",
       senders: ["noreply@spotify.com"],
       category: "Music",
+      requiresSubject: true,
     },
     {
       name: "Prime Video",
       senders: ["digital-orders@amazon.com", "payments-noreply@amazon.com"],
       category: "Streaming",
+      requiresSubject: true,
+    },
+    {
+      name: "YouTube Premium",
+      senders: ["noreply-purchases@youtube.com"],
+      category: "Music",
+      requiresSubject: false, // ← YouTube doesn't need subject keywords
+    },
+    {
+      name: "Disney+",
+      senders: ["noreply@disneyplus.com"],
+      category: "Streaming",
+      requiresSubject: false,
+    },
+    {
+      name: "Apple Music",
+      senders: ["noreply@apple.com", "noreply@email.apple.com"],
+      category: "Music",
+      requiresSubject: false,
+    },
+    {
+      name: "Hulu",
+      senders: ["noreply@hulu.com", "billing@hulu.com"],
+      category: "Streaming",
+      requiresSubject: true,
     },
   ];
 
   const subscriptions = [];
 
   for (let service of services) {
-    const query = `from:(${service.senders.join(" OR ")}) subject:(billing OR payment OR renewal OR confirm OR charge)`;
+    let query;
+    if (service.requiresSubject) {
+      query = `from:(${service.senders.join(" OR ")}) subject:(billing OR payment OR renewal OR confirm OR charge)`;
+    } else {
+      query = `from:(${service.senders.join(" OR ")})`;
+    }
 
     try {
       console.log(`Fetching ${service.name} emails...`);
@@ -136,15 +168,19 @@ function parseEmail(serviceName, category, emailData) {
   try {
     const body = getEmailBody(emailData.payload);
 
-    // Extract price
-    const priceMatch = body.match(/[\$€£]\s*(\d+[\d,]*\.?\d{0,2})/);
+    // Extract price - handles $ € £ ₹ and various formats
+    const priceMatch = body.match(
+      /[₹\$€£]\s*(\d+[\d,]*\.?\d{0,2})|(\d+[\d,]*\.?\d{0,2})\s*[₹\$€£]/,
+    );
     const amount = priceMatch ? priceMatch[0] : "Unknown";
 
     // Extract date
     const datePatterns = [
       /next (?:billing|charge|renewal|payment).*?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i,
       /renewal.*?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i,
-      /(?:will be charged|next charge).*?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i,
+      /(?:will be charged|next charge|trial ends).*?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i,
+      /(?:charged|charge).*?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i,
+      /(\w+ \d{1,2}, \d{4})/,
     ];
 
     let nextDate = "Unknown";
@@ -156,10 +192,18 @@ function parseEmail(serviceName, category, emailData) {
       }
     }
 
+    console.log(`✅ Parsed ${serviceName}: Amount=${amount}, Date=${nextDate}`);
+
     return {
       name: serviceName,
       amount,
-      currency: amount.includes("$") ? "USD" : "EUR",
+      currency: amount.includes("₹")
+        ? "INR"
+        : amount.includes("$")
+          ? "USD"
+          : amount.includes("€")
+            ? "EUR"
+            : "USD",
       nextBillingDate: nextDate,
       category,
       status: "active",

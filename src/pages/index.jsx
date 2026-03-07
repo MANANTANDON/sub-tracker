@@ -1,8 +1,6 @@
-import { useRouter } from "next/router";
-import { useState } from "react";
+import React, { useState } from "react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
