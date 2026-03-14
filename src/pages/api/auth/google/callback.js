@@ -7,11 +7,10 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/callback`;
 
 export default async function handler(req, res) {
-  const { code, state } = req.query;
-  const email = state;
+  const { code } = req.query;
+  let email = null;
 
   console.log("OAuth callback received with code:", code);
-  console.log("Email:", email);
 
   if (!code) {
     return res.status(400).json({ error: "Missing authorization code" });
@@ -45,17 +44,42 @@ export default async function handler(req, res) {
 
     console.log("Got access token!");
 
+    // Fetch user info from Google to get email
+    try {
+      const userInfoResponse = await fetch(
+        "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
+        {
+          headers: { Authorization: `Bearer ${googleAccessToken}` },
+        },
+      );
+      const userInfo = await userInfoResponse.json();
+      console.log("Google user info:", userInfo);
+      email = userInfo.email;
+      if (!email) {
+        console.error("No email in response:", userInfo);
+        return res
+          .status(400)
+          .json({ error: "Could not get email from Google" });
+      }
+      console.log("Got user email from Google:", email);
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+      return res
+        .status(500)
+        .json({ error: `Failed to get user info: ${error.message}` });
+    }
+
     // Step 2: Connect to MongoDB
     await connectDB();
     console.log("Connected to MongoDB");
 
     // Step 3: Find or create user
-    let user = await User.findOne({ email: email || "unknown" });
+    let user = await User.findOne({ email });
 
     if (!user) {
       console.log("Creating new user:", email);
       user = new User({
-        email: email || "unknown",
+        email,
         password: "",
         googleAccessToken: googleAccessToken,
         googleRefreshToken: googleRefreshToken,
